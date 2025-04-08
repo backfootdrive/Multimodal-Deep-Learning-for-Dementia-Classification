@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 import tensorflow as tf
@@ -5,14 +6,7 @@ import nibabel as nib
 from scipy import ndimage
 import random
 from sklearn.model_selection import train_test_split
-import subprocess
-
-def read_nifti_file(filepath):
-    """Read and load volume"""
-    # Read file
-    scan = nib.load(filepath)
-    # Return raw data
-    return scan.get_fdata()
+import subprocess, shlex
 
 class Utils:
     def read_nifti_file(filepath):
@@ -21,12 +15,59 @@ class Utils:
         scan = nib.load(filepath)
         # Return raw data
         return scan.get_fdata()
-    
-    def skullstrip(filepath, threshold=0.5):
-        subprocess.run(["bet", f"{filepath} {filepath}_stripped -B -f {threshold} -g 0"])
+
+    def load_4dfp(filepath):
+        """
+        Load a 4dfp.img file and return the data array
+        
+        Args:
+            filepath: Path to the .4dfp.img file
+        
+        Returns:
+            numpy array containing the image data
+        """
+        # 4dfp is not directly supported by nibabel, so we need a custom approach
+        # Option 1: Use nibabel's Analyze format reader (may work for some 4dfp files)
+        try:
+            img = nib.AnalyzeImage.load(filepath)
+            data = img.get_fdata()
+            return data, img.affine
+        except:
+            # Option 2: If specialized tools are available
+            # Convert to NIfTI first (shell command)
+            base_path = filepath.replace('.4dfp.img', '')
+            output_nii = base_path + '.nii'
+            subprocess.run(["nifti_4dfp", "-n", base_path, output_nii])  # This command depends on having the proper 4dfp tool installed
+            
+            # Then load with nibabel
+            img = nib.load(output_nii)
+            data = img.get_fdata()
+            return data, img.affine
+        
+    def skullstrip_mri(filepath, output=None, threshold=0.5, mode="R", multi=False):
+        """
+        Use FSL BET2 (Brain Extraction Tool) to mask the brain from the skull
+
+        Args:
+            filepath: path to the file for BET
+            (optional) output: Output file (default=*_stripped)
+            (optional) threshold:  Intensity Threshold (default=0.5)
+            (optional) mode: R | B (Robust | Bias-field) (default=R)
+            (optional) multi: Open parallel processes (default=False)
+
+        Returns:
+            Popen | CompletedProcess Object
+        """
+        if not output:
+            output = filepath + "_stripped"
+        cmd = f"bet {filepath} {output} -{mode} -f {str(threshold)} -g 0"
+        if multi:
+            return subprocess.Popen(shlex.split(cmd))
+        else:
+            return subprocess.run(shlex.split(cmd))
 
     def normalize_volume(volume):
-        """Normalize the volume"""
+        """Normalize a volume"""
         volume = (volume - np.min(volume)) / (np.max(volume) - np.min(volume))
         return volume.astype('float32')
 
@@ -99,15 +140,11 @@ def process_scan(path):
     volume = Utils.read_nifti_file(path)
     # Average PET scans over 4th dimension -> 3D
     if len(volume.shape) == 4:
-            volume = np.mean(volume, axis=3)
+        volume = np.mean(volume, axis=3)
     # Normalize
     volume = Utils.normalize_volume(volume)
     # Resize width, height and depth
     volume = Utils.resize_volume(volume)
-    # # Augment volume by rotation
-    # volume = rotate(volume)
-    # Add channel
-    # volume = volume[..., np.newaxis]
     return volume
 
 def train_preprocessing(volume, label):
