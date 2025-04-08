@@ -62,9 +62,13 @@ class Utils:
             output = filepath + "_stripped"
         cmd = f"bet {filepath} {output} -{mode} -f {str(threshold)} -g 0"
         if multi:
-            return subprocess.Popen(shlex.split(cmd))
+            return subprocess.Popen(shlex.split(cmd), 
+                                    stderr=subprocess.DEVNULL,
+                                    stdout=subprocess.DEVNULL)
         else:
-            return subprocess.run(shlex.split(cmd))
+            return subprocess.run(shlex.split(cmd), check=True,
+                                  stderr=subprocess.DEVNULL,
+                                  stdout=subprocess.DEVNULL)
 
     def normalize_volume(volume):
         """Normalize a volume"""
