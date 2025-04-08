@@ -4,26 +4,32 @@ from keras import layers
 import visualkeras
 
     
-def get_3DCNN_model(width=128, height=128, depth=64, fig=False):
-    """Build a 3D convolutional neural network model."""
+def get_3DCNN_model(width=128, height=128, depth=64, fig=False, frozen=False):
+    """
+    Build a 3D convolutional neural network model.
+
+    References
+    ----------
+    - https://arxiv.org/abs/2007.13224
+    """
 
     inputs = keras.Input((width, height, depth, 1))
 
     x = layers.Conv3D(filters=64, kernel_size=3, activation="relu")(inputs)
     x = layers.MaxPool3D(pool_size=2)(x)
-    x = layers.BatchNormalization()(x)
+    x = layers.BatchNormalization(trainable=frozen)(x)
 
     x = layers.Conv3D(filters=64, kernel_size=3, activation="relu")(x)
     x = layers.MaxPool3D(pool_size=2)(x)
-    x = layers.BatchNormalization()(x)
+    x = layers.BatchNormalization(trainable=frozen)(x)
 
     x = layers.Conv3D(filters=128, kernel_size=3, activation="relu")(x)
     x = layers.MaxPool3D(pool_size=2)(x)
-    x = layers.BatchNormalization()(x)
+    x = layers.BatchNormalization(trainable=frozen)(x)
 
     x = layers.Conv3D(filters=256, kernel_size=3, activation="relu")(x)
     x = layers.MaxPool3D(pool_size=2)(x)
-    x = layers.BatchNormalization()(x)
+    x = layers.BatchNormalization(trainable=frozen)(x)
 
     x = layers.GlobalAveragePooling3D()(x)
     x = layers.Dense(units=512, activation="relu")(x)
@@ -52,6 +58,7 @@ def get_3DCNN_model(width=128, height=128, depth=64, fig=False):
         visualize_model(model)
 
     return model
+
 
 def visualize_model(model, prefix=""):
     keras.utils.plot_model(

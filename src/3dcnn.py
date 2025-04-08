@@ -7,8 +7,8 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from concurrent.futures import ThreadPoolExecutor
 
-from loader import get_files_and_labels_oasis_1, get_files_and_labels_oasis_2
-from src.preprocessing.preprocessing import process_scan, train_preprocessing, val_preprocessing
+from utils.loader import get_files_and_labels_oasis_1, get_files_and_labels_oasis_2
+from utils.preprocessing import process_scan, train_preprocessing, val_preprocessing
 from models import get_3DCNN_model, visualize_model
 import keras
 

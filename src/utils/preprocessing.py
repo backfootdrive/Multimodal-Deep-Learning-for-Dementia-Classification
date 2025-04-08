@@ -1,10 +1,11 @@
+import cv2
 import numpy as np
 import tensorflow as tf
 import nibabel as nib
 from scipy import ndimage
 import random
 from sklearn.model_selection import train_test_split
-
+import subprocess
 
 def read_nifti_file(filepath):
     """Read and load volume"""
@@ -20,6 +21,9 @@ class Utils:
         scan = nib.load(filepath)
         # Return raw data
         return scan.get_fdata()
+    
+    def skullstrip(filepath, threshold=0.5):
+        subprocess.run(["bet", f"{filepath} {filepath}_stripped -B -f {threshold} -g 0"])
 
     def normalize_volume(volume):
         """Normalize the volume"""
@@ -65,11 +69,37 @@ class Utils:
         augmented_volume = tf.numpy_function(scipy_rotate, [volume], tf.float32)
         return augmented_volume
 
+    def find_brain_bounding_box(image):
+        x, y, w, h = (image.shape[0] + 1, image.shape[1] + 1, -1, -1)
+        for slice in image.T:
+            blurred = cv2.GaussianBlur(slice.T, (13, 13), 150)
+            blurred *= 255.0 / blurred.max()
+            blurred[np.where(blurred < 0)] = 0
+            blurred = blurred.astype(np.uint8)
+            ret, thres = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            blurred_thres = cv2.medianBlur(thres, 5)
+            contours, hierarchy = cv2.findContours(blurred_thres, 1, 2)
+            curr_x, curr_y, curr_w, curr_h = cv2.boundingRect(contours[0])
+            w = max(w, curr_x + curr_w)
+            h = max(h, curr_y + curr_h)
+            x = min(x, curr_x)
+            y = min(y, curr_y)
+        # provide a small padding around the found box:
+        x = max(x - 10, 0)
+        y = max(y - 10, 0)
+        w = min(w + 10, image.shape[0])
+        h = min(h + 10, image.shape[1])
+        return x, y, w, h
+
+
 def process_scan(path):
     """Read and resize volume"""
     print(path)
     # Read scan
     volume = Utils.read_nifti_file(path)
+    # Average PET scans over 4th dimension -> 3D
+    if len(volume.shape) == 4:
+            volume = np.mean(volume, axis=3)
     # Normalize
     volume = Utils.normalize_volume(volume)
     # Resize width, height and depth

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from models import get_3DCNN_model
-from src.preprocessing.preprocessing import process_scan
+from utils.preprocessing import process_scan
 
 
 if __name__ == "__main__":
