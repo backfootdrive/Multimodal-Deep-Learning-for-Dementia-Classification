@@ -20,6 +20,7 @@ def plot_central_slices(volume, title, cmap='hot'):
     plt.colorbar()
     
     plt.subplot(1, 3, 2)
+    plt.face
     plt.imshow(volume[:, :, z_mid], cmap=cmap)
     plt.imshow(ndimage.rotate(volume[:, :, y_mid], -90, reshape=False), cmap=cmap)
     plt.title(f"{title} - Coronal")
